@@ -3,11 +3,21 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { GitBranch, Clock, Terminal, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { GitBranch, Clock, Terminal, AlertCircle, CheckCircle, XCircle, Loader2, Trash2, X } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Task, TaskStatus } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { apiClient } from '@/lib/api-client'
 
 interface TaskCardProps {
   task: Task
@@ -15,6 +25,23 @@ interface TaskCardProps {
 
 export function TaskCard({ task }: TaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const queryClient = useQueryClient()
+
+  const deleteMutation = useMutation({
+    mutationFn: () => apiClient.deleteTask(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      setShowDeleteDialog(false)
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: () => apiClient.cancelTask(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    },
+  })
 
   const statusIcon = {
     [TaskStatus.PENDING]: <Clock className="h-5 w-5 text-gray-500" />,
@@ -70,6 +97,32 @@ export function TaskCard({ task }: TaskCardProps) {
                 </Button>
               </Link>
             )}
+            {(task.status === TaskStatus.PENDING || task.status === TaskStatus.RUNNING) && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => cancelMutation.mutate()}
+                disabled={cancelMutation.isPending}
+              >
+                {cancelMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Cancel
+                  </>
+                )}
+              </Button>
+            )}
+            {task.status !== TaskStatus.RUNNING && task.status !== TaskStatus.PENDING && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -105,6 +158,50 @@ export function TaskCard({ task }: TaskCardProps) {
           )}
         </div>
       </CardContent>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <p className="text-sm">
+              <strong>Branch:</strong> {task.branch_name}
+            </p>
+            <p className="text-sm">
+              <strong>Status:</strong> {task.status}
+            </p>
+            <p className="text-sm">
+              <strong>Created:</strong> {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

@@ -108,6 +108,10 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteTask(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/tasks/${id}`);
+  }
+
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     const response = await this.client.get<{ status: string }>('/health');

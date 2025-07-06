@@ -26,6 +26,12 @@ export default function TasksPage() {
     },
   })
 
+  // Separate query to get all tasks for counting
+  const { data: allTasks } = useQuery({
+    queryKey: ['tasks', 'all'],
+    queryFn: () => apiClient.getTasks(),
+  })
+
   const { data: repositories } = useQuery({
     queryKey: ['repositories'],
     queryFn: () => apiClient.getRepositories(),
@@ -59,7 +65,7 @@ export default function TasksPage() {
             status="all"
             currentStatus={statusFilter}
             onClick={() => setStatusFilter('all')}
-            count={tasks?.length || 0}
+            count={allTasks?.length || 0}
           />
           {Object.values(TaskStatus).map((status) => (
             <StatusFilterButton
@@ -67,7 +73,7 @@ export default function TasksPage() {
               status={status}
               currentStatus={statusFilter}
               onClick={() => setStatusFilter(status)}
-              count={tasks?.filter(t => t.status === status).length || 0}
+              count={allTasks?.filter(t => t.status === status).length || 0}
             />
           ))}
         </div>

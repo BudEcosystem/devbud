@@ -168,6 +168,34 @@ async def get_task_output(
     )
 
 
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a task."""
+    query = select(Task).where(Task.id == task_id)
+    result = await db.execute(query)
+    task = result.scalar_one_or_none()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found"
+        )
+    
+    if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete task in {task.status} status. Cancel it first."
+        )
+    
+    await db.delete(task)
+    await db.commit()
+    
+    return None
+
+
 # Helper functions for tests
 async def get_all_tasks(db: AsyncSession) -> List[dict]:
     """Get all tasks (used in tests)."""

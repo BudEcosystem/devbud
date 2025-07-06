@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Test Database
+  test-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: devbud_test
+      POSTGRES_USER: devbud_test
+      POSTGRES_PASSWORD: devbud_test_password
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devbud_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Run tests
+  test-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    environment:
+      DATABASE_URL: postgresql+asyncpg://devbud_test:devbud_test_password@test-db:5432/devbud_test
+      REDIS_URL: redis://test-redis:6379
+      TESTING: "true"
+    volumes:
+      - ./backend:/app
+      - test_worktree_data:/tmp/test_worktrees
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        pytest -v --cov=app --cov-report=html --cov-report=term
+      "
+
+volumes:
+  test_worktree_data:

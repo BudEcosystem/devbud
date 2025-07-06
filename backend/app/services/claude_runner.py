@@ -12,6 +12,7 @@ class ClaudeCodeRunner:
     
     def __init__(self):
         self.active_processes: Dict[str, asyncio.subprocess.Process] = {}
+        self._task_success: Dict[str, bool] = {}
         self.timeout = settings.CLAUDE_TIMEOUT
     
     async def start_task(
@@ -22,10 +23,11 @@ class ClaudeCodeRunner:
     ) -> AsyncGenerator[str, None]:
         """Start Claude Code CLI and stream output."""
         try:
-            # Create subprocess
+            # Create subprocess with permission bypass for automated execution
             process = await asyncio.create_subprocess_exec(
-                "claude", "code",
-                stdin=asyncio.subprocess.PIPE,
+                "claude",
+                "--dangerously-skip-permissions",  # Skip permission prompts
+                instructions,  # Pass instructions as argument
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 cwd=worktree_path,
@@ -35,11 +37,7 @@ class ClaudeCodeRunner:
             self.active_processes[task_id] = process
             logger.info(f"Started Claude Code process for task {task_id} (PID: {process.pid})")
             
-            # Send instructions
-            if process.stdin:
-                process.stdin.write(instructions.encode())
-                await process.stdin.drain()
-                process.stdin.close()
+            # No stdin needed with --dangerously-skip-permissions
             
             # Stream output with timeout
             try:
@@ -58,6 +56,9 @@ class ClaudeCodeRunner:
             
             # Wait for process to complete
             await process.wait()
+            
+            # Store the success status before cleanup
+            self._task_success[task_id] = process.returncode == 0
             
             if process.returncode == 0:
                 yield "\n[SUCCESS] Claude Code completed successfully\n"
@@ -105,6 +106,11 @@ class ClaudeCodeRunner:
     
     async def get_task_status(self, task_id: str) -> str:
         """Get the status of a Claude Code task."""
+        # Check if we have a recorded success status
+        if task_id in self._task_success:
+            return "completed" if self._task_success[task_id] else "failed"
+        
+        # Check active processes
         if task_id not in self.active_processes:
             return "not_found"
         

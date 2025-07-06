@@ -89,7 +89,10 @@ export function TaskCard({ task }: TaskCardProps) {
           </div>
           
           <div className="flex items-center gap-2">
-            {task.status === TaskStatus.RUNNING && (
+            {(task.status === TaskStatus.RUNNING || 
+              task.status === TaskStatus.COMPLETED || 
+              task.status === TaskStatus.FAILED ||
+              task.status === TaskStatus.CANCELLED) && (
               <Link href={`/tasks/${task.id}`}>
                 <Button size="sm">
                   <Terminal className="mr-2 h-4 w-4" />
@@ -148,11 +151,11 @@ export function TaskCard({ task }: TaskCardProps) {
             )}
           </div>
 
-          {task.output_log && (
+          {task.output && (
             <div>
               <h4 className="text-sm font-medium mb-1">Latest Output</h4>
               <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto max-h-32 overflow-y-auto">
-                {task.output_log.split('\n').slice(-10).join('\n')}
+                {task.output.split('\n').slice(-10).join('\n')}
               </pre>
             </div>
           )}

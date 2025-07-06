@@ -21,6 +21,22 @@ docker compose up -d
 # - Flower (Celery monitor): http://localhost:5555
 ```
 
+### Hybrid Mode Setup (Recommended for Claude Code CLI)
+```bash
+# Run this setup script to configure hybrid mode
+./setup-hybrid.sh
+
+# OR manually:
+# 1. Start Docker services (excluding worker)
+make docker-up-hybrid
+
+# 2. In a new terminal, run the worker locally
+make run-worker-local
+
+# This allows Claude Code CLI to use browser authentication
+# while other services run in Docker containers
+```
+
 ### Backend Development
 ```bash
 # From /backend directory
@@ -113,7 +129,8 @@ alembic upgrade head  # Apply migrations
 5. Add TypeScript types in `frontend/src/types/`
 
 ### Working with Git Worktrees
-- Worktrees are created in `backend/data/worktrees/`
+- In Docker mode: Worktrees are created in `backend/data/worktrees/`
+- In Hybrid mode: Worktrees are created in `~/workspace/`
 - Each task gets a unique worktree for isolation
 - Cleanup happens automatically or via API endpoint
 
@@ -122,3 +139,27 @@ alembic upgrade head  # Apply migrations
 - Verify Redis is running for message broker
 - Check Celery worker logs: `make docker-logs`
 - Frontend WebSocket client: `frontend/src/lib/websocket.ts`
+
+## Hybrid Mode Details
+
+When running in hybrid mode (recommended for Claude Code CLI):
+
+1. **Why Hybrid Mode?**
+   - Claude Code CLI requires browser authentication
+   - Running inside Docker prevents access to browser login
+   - Hybrid mode runs the worker locally with Claude access
+
+2. **Configuration**
+   - Docker services use internal networking
+   - Worker connects to exposed ports on localhost
+   - Environment configured in `backend/.env.local`
+
+3. **File Locations**
+   - Worktrees: `~/workspace/` (on host)
+   - Repositories: `/home/budadmin/` (mounted in containers)
+   - SSH keys: `~/.ssh/` (available to worker)
+
+4. **Prerequisites**
+   - Claude Code CLI installed: `npm install -g @anthropics/claude-code`
+   - Authenticated: `claude login`
+   - Python 3.8+ with venv support

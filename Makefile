@@ -28,7 +28,12 @@ run:
 	cd backend && . venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 run-worker:
-	cd backend && . venv/bin/activate && celery -A app.services.task_queue worker --loglevel=info
+	cd backend && . venv/bin/activate && export $$(cat .env.local | xargs) && python -m celery -A app.services.task_queue worker --loglevel=info
+
+run-worker-local:
+	@echo "Starting Celery worker with local environment..."
+	@echo "Make sure Claude Code CLI is installed and authenticated (claude login)"
+	cd backend && export $$(cat .env.local | xargs) && PYTHONPATH=. venv/bin/python -m celery -A app.services.task_queue_sync worker --loglevel=info --pool=solo
 
 run-flower:
 	cd backend && . venv/bin/activate && celery -A app.services.task_queue flower --port=5555
@@ -39,6 +44,20 @@ docker-up:
 	@echo "API: http://localhost:8000"
 	@echo "API Docs: http://localhost:8000/docs"
 	@echo "Flower (Celery Monitor): http://localhost:5555"
+
+docker-up-hybrid:
+	@echo "Starting DevBud in hybrid mode (worker runs locally)..."
+	docker compose up -d db redis backend frontend flower
+	@echo ""
+	@echo "Services running in Docker:"
+	@echo "  - API: http://localhost:8000/docs"
+	@echo "  - Frontend: http://localhost:3000"
+	@echo "  - Flower: http://localhost:5555"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Ensure Claude Code CLI is installed: npm install -g @anthropics/claude-code"
+	@echo "  2. Login to Claude: claude login"
+	@echo "  3. In a new terminal, run: make run-worker-local"
 
 docker-down:
 	docker-compose down

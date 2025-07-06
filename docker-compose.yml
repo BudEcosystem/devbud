@@ -49,7 +49,7 @@ services:
       - worktree_data:/app/data/worktrees
       # Git config will be set by startup command
       - ~/.ssh:/root/.ssh:ro              # Share SSH keys for git
-      - /home/budadmin:/home/budadmin:ro  # Mount repositories directory (read-only)
+      - /home/budadmin:/home/budadmin  # Mount repositories directory
     depends_on:
       db:
         condition: service_healthy
@@ -80,28 +80,34 @@ services:
       - backend
     command: npm run dev
 
-  # Celery Worker
-  celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-devbud}:${POSTGRES_PASSWORD:-devbud_password}@db:5432/${POSTGRES_DB:-devbud_db}
-      REDIS_URL: redis://redis:6379
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-opus-4}
-      WORKTREE_BASE_PATH: /app/data/worktrees
-    volumes:
-      - ./backend:/app
-      - worktree_data:/app/data/worktrees
-      # Git config will be set by startup command
-      - ~/.ssh:/root/.ssh:ro
-      - /home/budadmin:/home/budadmin:ro  # Mount repositories directory (read-only)
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: celery -A app.services.task_queue worker --loglevel=info
+  # Celery Worker - Commented out for local execution
+  # Run the worker locally instead to access Claude Code CLI with browser auth
+  # See backend/.env.local for local configuration
+  # celery:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-devbud}:${POSTGRES_PASSWORD:-devbud_password}@db:5432/${POSTGRES_DB:-devbud_db}
+  #     REDIS_URL: redis://redis:6379
+  #     CLAUDE_MODEL: ${CLAUDE_MODEL:-opus-4}
+  #     WORKTREE_BASE_PATH: /app/data/worktrees
+  #   volumes:
+  #     - ./backend:/app
+  #     - worktree_data:/app/data/worktrees
+  #     # Git config will be set by startup command
+  #     - ~/.ssh:/root/.ssh:ro
+  #     - /home/budadmin:/home/budadmin  # Mount repositories directory
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   command: >
+  #     sh -c "
+  #       git config --global --add safe.directory '*' &&
+  #       celery -A app.services.task_queue worker --loglevel=info
+  #     "
 
   # Celery Beat (for scheduled tasks if needed)
   celery-beat:

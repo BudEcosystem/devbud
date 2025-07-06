@@ -25,6 +25,9 @@ class GitWorktreeManager:
         worktree_path = self.base_path / repo_name / branch_name
         
         try:
+            # Configure git to trust all directories (for Docker environments)
+            await self._run_command("git config --global --add safe.directory '*'")
+            
             # Create worktree directory
             worktree_path.parent.mkdir(parents=True, exist_ok=True)
             

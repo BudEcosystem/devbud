@@ -23,11 +23,16 @@ class ClaudeCodeRunner:
     ) -> AsyncGenerator[str, None]:
         """Start Claude Code CLI and stream output."""
         try:
-            # Create subprocess with permission bypass for automated execution
-            process = await asyncio.create_subprocess_exec(
-                "claude",
-                "--dangerously-skip-permissions",  # Skip permission prompts
-                instructions,  # Pass instructions as argument
+            # Build command with proper quoting
+            import shlex
+            command_str = f'claude --dangerously-skip-permissions "{instructions}"'
+            logger.info(f"Executing Claude CLI command for task {task_id}:")
+            logger.info(f"Command: {command_str}")
+            logger.info(f"Working directory: {worktree_path}")
+            
+            # Create subprocess with shell=True for proper quote handling
+            process = await asyncio.create_subprocess_shell(
+                command_str,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 cwd=worktree_path,
@@ -44,10 +49,12 @@ class ClaudeCodeRunner:
                 async with asyncio.timeout(self.timeout):
                     async for line in process.stdout:
                         output = line.decode('utf-8', errors='replace')
+                        logger.debug(f"Claude CLI output for task {task_id}: {output.strip()}")
                         yield output
                         
                         # Check if process has terminated
                         if process.returncode is not None:
+                            logger.info(f"Claude CLI process terminated for task {task_id} with return code: {process.returncode}")
                             break
             
             except asyncio.TimeoutError:
